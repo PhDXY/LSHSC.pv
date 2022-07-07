@@ -1,0 +1,154 @@
+(* Channel Definition *)
+free SDNC_TA_registration_net : channel [private]. 
+free Fj_SDNC_registration_net : channel [private].
+free Vi_TA_registration_net : channel [private]. 
+free Vi_SDNC_public_net : channel. 
+free Vi_Fj_public_net : channel. 
+
+(* Public and Private Terms *)
+const T_0 : bitstring.  (*timestamp*)
+const T_1 : bitstring.  (*timestamp*)
+const T_2 : bitstring.  (*timestamp*)
+const T_3 : bitstring.  (*timestamp*)
+const T_4 : bitstring.  (*timestamp*)
+const T_5 : bitstring.  (*timestamp*)
+const P1 : bitstring.
+free ID_CK,ID_Fj: bitstring.
+free ID_Vi,Token_Vi,NID_Vi,Token_Vinew,TID_Vinew,GID_Vi,U_TA,U_Ck,S_TACk,S_CkFj,S_TAVi,S_CkVi,SK_FjVi,GK_T: bitstring [private].
+
+
+(* Functions *)
+fun HashFunOne(bitstring) : bitstring.
+fun HashFunTwo(bitstring, bitstring) : bitstring.
+fun HashFunThree(bitstring,bitstring, bitstring) : bitstring.
+fun HashFunFour(bitstring, bitstring, bitstring, bitstring) : bitstring.
+fun HashFunFive(bitstring, bitstring, bitstring, bitstring, bitstring) : bitstring.
+fun HashFunSix(bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring) : bitstring.
+
+fun Encrypt(bitstring,bitstring) : bitstring.
+fun XORFun(bitstring, bitstring) : bitstring.
+fun Concat(bitstring, bitstring) : bitstring.
+
+(* Destructors *)
+reduc forall m1 : bitstring,m2: bitstring; Decrypt(Encrypt(m1,m2),m1) = m2.
+reduc forall m3 : bitstring,m4 : bitstring; SeparateFirst(Concat(m3,m4)) = m3.
+reduc forall m3 : bitstring,m4 : bitstring; SeparateSecond(Concat(m3,m4)) = m4.
+
+
+(*Equations *)
+equation forall m9 : bitstring, m10 : bitstring; XORFun(m9, m10) = XORFun(m10, m9).
+
+(* Queries *)
+query attacker (S_TACk).
+query attacker (S_CkFj).
+query attacker ( S_TAVi).
+query attacker (S_CkVi ).
+query attacker (SK_FjVi ).
+query attacker (GK_T).
+query attacker (Token_Vi).
+
+noninterf ID_Vi.
+noninterf GID_Vi.
+noninterf NID_Vi. 
+
+weaksecret U_TA.
+weaksecret U_Ck.
+
+query inj-event (endSDNC_Vi) ==> inj-event (startVi_SDNC).
+query inj-event (endFj_Vi) ==> inj-event ( startVi_Fj).
+
+(*Events *)
+event startVi_SDNC.
+event endSDNC_Vi.
+event startVi_Fj.
+event endFj_Vi.
+
+(* TA *)
+let pTA=
+let S_TACk=HashFunTwo(U_TA, ID_CK) in
+out (SDNC_TA_registration_net, (U_Ck,S_TACk ));
+
+let S_TAVi=HashFunTwo(U_TA, ID_Vi) in
+let S_CkVi=HashFunThree(U_TA,ID_CK, ID_Vi) in
+new N1: bitstring;
+let C0=Concat(N1, T_0) in
+let PID_Vi=Encrypt(U_TA,C0) in
+out (Vi_TA_registration_net, (ID_Vi,PID_Vi,S_TAVi,S_CkVi));
+0.
+
+(*SDNC *)
+let pSDNC=
+out (SDNC_TA_registration_net, (ID_CK));
+
+new ID_Fj: bitstring;
+in (Fj_SDNC_registration_net, (ID_Fj:bitstring));
+let S_CkFj=HashFunTwo(U_Ck, ID_Fj) in
+new GK_T: bitstring;
+
+in (SDNC_TA_registration_net , (PID_Vi:bitstring, S_CkVi:bitstring));
+
+in(Vi_SDNC_public_net, (PID_Vi:bitstring,M_Vi:bitstring,T_1:bitstring,alpha_Vi:bitstring));
+let m_Vi_1 =Decrypt(S_CkVi,M_Vi) in
+let alpha_Vi_1 = HashFunFive(S_CkVi,PID_Vi,m_Vi_1,M_Vi,T_1) in
+if ( alpha_Vi_1= alpha_Vi) then
+new GID_Vi : bitstring;
+new NID_Vi : bitstring;
+let TID_Vi=XORFun(GID_Vi, HashFunTwo(GK_T, T_2)) in
+let Token_Vi=HashFunThree(GK_T, GID_Vi,T_2) in
+let C1=Concat(Token_Vi,NID_Vi) in
+let C_ik=Encrypt(S_CkVi,C1) in
+let beta_CK=HashFunFive(TID_Vi, Token_Vi,NID_Vi,C_ik,T_2) in
+event endSDNC_Vi;
+0. 
+
+(* Fj *)
+let pFj=
+
+in (Fj_SDNC_registration_net,(S_CkFj:bitstring, P1:bitstring, GK_T: bitstring));
+
+in (Vi_Fj_public_net,(TID_Vi:bitstring,r_i:bitstring,T_2:bitstring,T_3:bitstring,theta_ij:bitstring));
+let GID_Vi_1=XORFun(TID_Vi, HashFunTwo(GK_T, T_2)) in
+let Token_Vi_1=HashFunThree(GK_T, GID_Vi_1,T_2) in
+let theta_ij_1 = HashFunFive(TID_Vi,r_i,Token_Vi_1,T_2,T_3) in
+if ( theta_ij_1= theta_ij) then
+new r_j : bitstring;
+let SK_FjVi = HashFunFour(Token_Vi_1,r_i,r_j,T_4) in
+let TID_Vinew=XORFun(GID_Vi, HashFunTwo(GK_T, T_5)) in
+let Token_Vinew=HashFunThree(GK_T, GID_Vi,T_5) in
+let C2=Concat(Token_Vinew,TID_Vinew) in
+let O_ik=Encrypt(Token_Vi, C2) in
+let eta_ij = HashFunSix(Token_Vi_1,r_j,SK_FjVi,TID_Vinew,Token_Vinew,O_ik,T_4,T_5) in
+event endFj_Vi;
+out (Vi_Fj_public_net, (r_j,O_ik,T_4,T_5,eta_ij));
+0.
+
+(* Vi *)
+let pVi=
+in (Vi_TA_registration_net , (PID_Vi:bitstring, S_TAVi:bitstring,S_CkVi:bitstring));
+
+new m_Vi : bitstring;
+let M_Vi =Encrypt(S_CkVi,m_Vi) in
+let alpha_Vi = HashFunFive(S_CkVi,PID_Vi,m_Vi,M_Vi,T_1) in
+out (Vi_SDNC_public_net, (PID_Vi,M_Vi,T_1,alpha_Vi));
+event startVi_SDNC;
+
+in (Vi_SDNC_public_net, (TID_Vi:bitstring,C_ik:bitstring,T_2:bitstring,beta_CK:bitstring));
+let C1=Decrypt(S_CkVi,C_ik) in
+let Token_Vi_1=SeparateFirst(C1) in
+let NID_Vi_1=SeparateSecond(C1) in
+let beta_CK_1=HashFunFive(TID_Vi, Token_Vi_1,NID_Vi_1,C_ik,T_2) in
+if ( beta_CK_1= beta_CK) then
+new r_i : bitstring;
+let theta_ij = HashFunFive(TID_Vi,r_i,Token_Vi_1,T_2,T_3) in
+event startVi_Fj;
+
+in (Vi_Fj_public_net, (r_j:bitstring,O_ik:bitstring,T_4:bitstring,T_5:bitstring,eta_ij:bitstring));
+let SK_FjVi = HashFunFour(Token_Vi_1,r_i,r_j,T_4) in
+let eta_ij = HashFunSix(Token_Vi_1,r_j,SK_FjVi,TID_Vinew,Token_Vinew,O_ik,T_4,T_5) in
+0.
+
+process
+( (!pFj) | (!pVi)|(!pSDNC) | (!pTA) )
+
+
+
